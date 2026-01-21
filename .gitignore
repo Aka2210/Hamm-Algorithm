@@ -1,0 +1,84 @@
+# -------------------
+# Compiled Object files
+# -------------------
+*.o
+*.obj
+*.res
+*.idb
+
+# -------------------
+# Libraries
+# -------------------
+*.lib
+*.a
+*.so
+*.so.*
+*.dll
+*.dylib
+
+# -------------------
+# Executables (Output binaries)
+# -------------------
+*.exe
+*.out
+*.app
+# Specific executable name from your project
+hamm
+main
+
+# -------------------
+# Build Directories (CMake / Make)
+# -------------------
+build/
+bin/
+lib/
+cmake-build-debug/
+cmake-build-release/
+CMakeCache.txt
+CMakeFiles/
+*.cmake
+install_manifest.txt
+Makefile
+# Keep CMakeLists.txt if you use CMake
+!CMakeLists.txt
+
+# -------------------
+# IDE & Editors
+# -------------------
+# VS Code
+.vscode/
+*.code-workspace
+
+# Visual Studio
+.vs/
+Debug/
+Release/
+x64/
+x86/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# CLion / IntelliJ
+.idea/
+
+# Mac / Linux system files
+.DS_Store
+.AppleDouble
+.LSOverride
+*~
+
+# -------------------
+# Data & Logs
+# -------------------
+# Ignore input data files to keep repo clean
+*.txt
+*.dat
+*.csv
+*.log
+
+# BUT keep these specific important text files
+!README.md
+!CMakeLists.txt
+!requirements.txt
