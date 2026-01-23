@@ -25,6 +25,16 @@ struct Header {
     Node* tail = nullptr;
 };
 
+Node* get_child(Node* parent, int item) {
+    for (auto& pair : parent->children) {
+        if (pair.first == item) return pair.second;
+    }
+    return nullptr;
+}
+
+void add_child(Node* parent, Node* child) {
+    parent->children.push_back({child->item, child});
+}
 
 void remove_infrequent_items(vector<Header*>& itemList, int min_sup) {
     for (auto it = itemList.begin(); it != itemList.end();) {
@@ -34,6 +44,16 @@ void remove_infrequent_items(vector<Header*>& itemList, int min_sup) {
             ++it; 
         }
     }
+}
+
+void write_output(vector<int>& pattern, int support, ofstream& outfile, int total_transactions) {
+    sort(pattern.begin(), pattern.end());
+    for (size_t i = 0; i < pattern.size(); i++) {
+        outfile << pattern[i] << (i != pattern.size() - 1 ? "," : "");
+    }
+    double ratio = (double)support / total_transactions;
+    double final_support = std::round(ratio * 10000.0) / 10000.0;
+    outfile << ":" << fixed << setprecision(4) << final_support << endl;
 }
 
 int main(int argc , char* argv[]) {
@@ -86,5 +106,39 @@ int main(int argc , char* argv[]) {
         });
         remove_infrequent_items(transaction, min_sup);
     }
+
+    // build FP-tree
+    Node* root = new Node();
+    for(auto& transaction : transactions){
+        Node* curr = root;
+        for(auto* header : transaction){
+            if(!header) continue;
+            Node* child = get_child(curr, header->item);
+            
+            if(child != nullptr){
+                child->freq++;
+                curr = child;
+            }
+            else{
+                Node* node = new Node();
+                node->item = header->item;
+                node->freq = 1;
+                node->parent = curr;
+                
+                add_child(curr, node);
+                
+                if(header->next == nullptr){
+                    header->next = node;
+                    header->tail = node;
+                }
+                else{
+                    header->tail->hlink = node;
+                    header->tail = node;
+                }
+                curr = node;
+            }
+        }
+    }
+
     return 0;
 }
