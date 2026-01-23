@@ -7,6 +7,15 @@
 #include <map>
 #include <iomanip>
 #include <cmath>
+#include <chrono>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <psapi.h>
+#else
+#include <unistd.h>
+#include <sys/resource.h>
+#endif
 
 using namespace std;
 
@@ -24,6 +33,22 @@ struct Header {
     Node* next = nullptr;
     Node* tail = nullptr;
 };
+
+long get_memory_usage() {
+#ifdef _WIN32
+    PROCESS_MEMORY_COUNTERS pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
+        return pmc.PeakWorkingSetSize / 1024;
+    }
+    return 0;
+#else
+    struct rusage usage;
+    if (getrusage(RUSAGE_SELF, &usage) == 0) {
+        return usage.ru_maxrss;
+    }
+    return 0;
+#endif
+}
 
 Node* get_child(Node* parent, int item) {
     for (auto& pair : parent->children) {
@@ -58,7 +83,6 @@ void write_output(vector<int>& pattern, int support, ofstream& outfile, int tota
 
 Node* construct_tree(const vector<pair<vector<int>, int>>& condPaths, vector<Header*>& newHeaders) {
     Node* newRoot = new Node();
-
     vector<Header*> headerMap(1000, nullptr); 
     for (auto* h : newHeaders) {
         headerMap[h->item] = h;
@@ -69,14 +93,12 @@ Node* construct_tree(const vector<pair<vector<int>, int>>& condPaths, vector<Hea
     for (auto& p : condPaths) {
         const vector<int>& rawPath = p.first;
         int count = p.second;            
-
         vector<Header*> sortedPath;
         for (int item : rawPath) {
             if (headerMap[item] != nullptr) {
                 sortedPath.push_back(headerMap[item]);
             }
         }
-
         sort(sortedPath.begin(), sortedPath.end(), [](Header* a, Header* b){
             if (a->freq == b->freq) return a->item < b->item; 
             return a->freq > b->freq; 
@@ -94,7 +116,6 @@ Node* construct_tree(const vector<pair<vector<int>, int>>& condPaths, vector<Hea
                 node->item = header->item;
                 node->freq = count; 
                 node->parent = curr;
-                
                 add_child(curr, node);
 
                 if (header->next == nullptr) {
@@ -122,15 +143,11 @@ void hamm_search(int index, vector<int>& current_pattern, const vector<int>& pat
     }
 
     int item = path[index];
-
     hamm_search(index + 1, current_pattern, path, suffix_support, outfile, total_transactions);
 
     current_pattern.push_back(item);
-    
     write_output(current_pattern, suffix_support, outfile, total_transactions);
-    
     hamm_search(index + 1, current_pattern, path, suffix_support, outfile, total_transactions);
-    
     current_pattern.pop_back();
 }
 
@@ -138,6 +155,7 @@ void FP_Growth(Node* root, vector<Header*>& headers, vector<int> prefix, int min
     for(auto& header : headers){
         vector<int> newPattern = prefix;
         newPattern.push_back(header->item);
+        
         write_output(newPattern, header->freq, outfile, total_transactions);
 
         if (is_single_node(header)) {
@@ -147,11 +165,8 @@ void FP_Growth(Node* root, vector<Header*>& headers, vector<int> prefix, int min
                 path.push_back(curr->item);
                 curr = curr->parent;
             }
-
             reverse(path.begin(), path.end());
-
             hamm_search(0, newPattern, path, header->freq, outfile, total_transactions);
-
             continue; 
         }
         
@@ -162,17 +177,12 @@ void FP_Growth(Node* root, vector<Header*>& headers, vector<int> prefix, int min
         while(node){ 
             Node* parent = node->parent;
             vector<int> path;
-            path.push_back(node->item); 
             while(parent->item != -1){
                 condCounts[parent->item] += node->freq;
                 path.push_back(parent->item);
                 parent = parent->parent;
             }
-
-            if(!path.empty()) {
-                reverse(path.begin(), path.end()); 
-                condPaths.push_back({path, node->freq});
-            }
+            if(!path.empty()) condPaths.push_back({path, node->freq});
             node = node->hlink;
         }
 
@@ -189,12 +199,11 @@ void FP_Growth(Node* root, vector<Header*>& headers, vector<int> prefix, int min
         if(newHeaders.empty()) continue;
 
         sort(newHeaders.begin(), newHeaders.end(), [](Header* a, Header* b){
-            if(a->freq == b->freq) return a->item < b->item;
+            if(a->freq == b->freq) return a->item < b->item; 
             return a->freq < b->freq; 
         });
 
         Node* newRoot = construct_tree(condPaths, newHeaders);
-
         FP_Growth(newRoot, newHeaders, newPattern, min_sup, outfile, total_transactions);
     }
 }
@@ -236,7 +245,7 @@ int main(int argc , char* argv[]) {
     int min_sup = (int)ceil(min_sup_rate * transactions.size());
     
     sort(headers.begin(), headers.end(), [](Header* a, Header* b){
-        if(a != nullptr && b != nullptr && a->freq == b->freq) return a->item > b->item;
+        if(a != nullptr && b != nullptr && a->freq == b->freq) return a->item > b->item; 
         return a != nullptr && b != nullptr ? a->freq < b->freq : a != nullptr;
     });
     
@@ -255,12 +264,27 @@ int main(int argc , char* argv[]) {
             initialPaths.push_back({path, 1});
         }
     }
-
+    
+    auto start_time = std::chrono::high_resolution_clock::now();
+    
     Node* root = construct_tree(initialPaths, headers);
     
     ofstream outfile(output_file);
     if (!outfile.is_open()) return 1;
+
     FP_Growth(root, headers, {}, min_sup, outfile, transactions.size());
+
     outfile.close();
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    long final_memory = get_memory_usage();
+    
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+
+    cout << "===== Performance Report =====" << endl;
+    cout << "Time Elapsed: " << duration.count() << " ms" << endl;
+    cout << "Memory Usage (Peak): " << final_memory << " KB" << endl;
+    cout << "==============================" << endl;
+    
     return 0;
 }
