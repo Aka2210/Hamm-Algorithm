@@ -56,6 +56,62 @@ void write_output(vector<int>& pattern, int support, ofstream& outfile, int tota
     outfile << ":" << fixed << setprecision(4) << final_support << endl;
 }
 
+Node* construct_tree(const vector<pair<vector<int>, int>>& condPaths, vector<Header*>& newHeaders) {
+    Node* newRoot = new Node();
+
+    vector<Header*> headerMap(1000, nullptr); 
+    for (auto* h : newHeaders) {
+        headerMap[h->item] = h;
+        h->next = nullptr; 
+        h->tail = nullptr;
+    }
+
+    for (auto& p : condPaths) {
+        const vector<int>& rawPath = p.first;
+        int count = p.second;            
+
+        vector<Header*> sortedPath;
+        for (int item : rawPath) {
+            if (headerMap[item] != nullptr) {
+                sortedPath.push_back(headerMap[item]);
+            }
+        }
+
+        sort(sortedPath.begin(), sortedPath.end(), [](Header* a, Header* b){
+            if (a->freq == b->freq) return a->item < b->item; 
+            return a->freq > b->freq; 
+        });
+
+        Node* curr = newRoot;
+        for (auto* header : sortedPath) { 
+            Node* child = get_child(curr, header->item);
+            if (child != nullptr) {
+                child->freq += count;   
+                curr = child;
+            }
+            else {
+                Node* node = new Node();
+                node->item = header->item;
+                node->freq = count; 
+                node->parent = curr;
+                
+                add_child(curr, node);
+
+                if (header->next == nullptr) {
+                    header->next = node;
+                    header->tail = node;
+                }
+                else {
+                    header->tail->hlink = node;
+                    header->tail = node;
+                }
+                curr = node;
+            }
+        }
+    }
+    return newRoot;
+}
+
 void FP_Growth(vector<Header*>& headers, vector<int> prefix, int min_sup, ofstream& outfile, int total_transactions) {
     for(auto& header : headers){
         vector<int> newPattern = prefix;
@@ -84,8 +140,6 @@ void FP_Growth(vector<Header*>& headers, vector<int> prefix, int min_sup, ofstre
         }
 
         vector<Header*> newHeaders;
-        vector<Header*> headerMap(1000, nullptr); 
-        
         for(int item = 0; item < 1000; item++){
             int count = condCounts[item];
             if(count >= min_sup){
@@ -93,7 +147,6 @@ void FP_Growth(vector<Header*>& headers, vector<int> prefix, int min_sup, ofstre
                 h->item = item;
                 h->freq = count;
                 newHeaders.push_back(h);
-                headerMap[item] = h;
             }
         }
         if(newHeaders.empty()) continue;
@@ -103,49 +156,8 @@ void FP_Growth(vector<Header*>& headers, vector<int> prefix, int min_sup, ofstre
             return a->freq < b->freq; 
         });
 
-        Node* newRoot = new Node();
-        for (auto& p : condPaths) {
-            vector<int>& rawPath = p.first;
-            int count = p.second;           
+        Node* newRoot = construct_tree(condPaths, newHeaders);
 
-            vector<Header*> sortedPath;
-            for (int item : rawPath) {
-                if (headerMap[item] != nullptr) {
-                    sortedPath.push_back(headerMap[item]);
-                }
-            }
-            sort(sortedPath.begin(), sortedPath.end(), [](Header* a, Header* b){
-                if (a->freq == b->freq) return a->item < b->item; 
-                return a->freq > b->freq; 
-            });
-
-            Node* curr = newRoot;
-            for (auto* header : sortedPath) { 
-                Node* child = get_child(curr, header->item);
-                if (child != nullptr) {
-                    child->freq += count;   
-                    curr = child;
-                }
-                else {
-                    Node* node = new Node();
-                    node->item = header->item;
-                    node->freq = count; 
-                    node->parent = curr;
-                    
-                    add_child(curr, node);
-
-                    if (header->next == nullptr) {
-                        header->next = node;
-                        header->tail = node;
-                    }
-                    else {
-                        header->tail->hlink = node;
-                        header->tail = node;
-                    }
-                    curr = node;
-                }
-            }
-        }
         FP_Growth(newHeaders, newPattern, min_sup, outfile, total_transactions);
     }
 }
@@ -192,47 +204,22 @@ int main(int argc , char* argv[]) {
     });
     
     remove_infrequent_items(headers, min_sup);
-    
-    for(auto& transaction : transactions){
-        sort(transaction.begin(), transaction.end(), [](Header* a, Header* b){
-            if(a->freq == b->freq) return a->item < b->item;
-            return a->freq > b->freq;
-        });
-        remove_infrequent_items(transaction, min_sup);
-    }
 
-    // build FP-tree
-    Node* root = new Node();
-    for(auto& transaction : transactions){
-        Node* curr = root;
-        for(auto* header : transaction){
-            if(!header) continue;
-            Node* child = get_child(curr, header->item);
-            
-            if(child != nullptr){
-                child->freq++;
-                curr = child;
-            }
-            else{
-                Node* node = new Node();
-                node->item = header->item;
-                node->freq = 1;
-                node->parent = curr;
-                
-                add_child(curr, node);
-                
-                if(header->next == nullptr){
-                    header->next = node;
-                    header->tail = node;
-                }
-                else{
-                    header->tail->hlink = node;
-                    header->tail = node;
-                }
-                curr = node;
-            }
+    vector<pair<vector<int>, int>> initialPaths;
+    initialPaths.reserve(transactions.size());
+    
+    for(const auto& trans : transactions) {
+        vector<int> path;
+        path.reserve(trans.size());
+        for(auto* h : trans) {
+            if(h) path.push_back(h->item);
+        }
+        if(!path.empty()) {
+            initialPaths.push_back({path, 1});
         }
     }
+
+    Node* root = construct_tree(initialPaths, headers);
     
     ofstream outfile(output_file);
     if (!outfile.is_open()) return 1;
