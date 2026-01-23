@@ -112,11 +112,48 @@ Node* construct_tree(const vector<pair<vector<int>, int>>& condPaths, vector<Hea
     return newRoot;
 }
 
-void FP_Growth(vector<Header*>& headers, vector<int> prefix, int min_sup, ofstream& outfile, int total_transactions) {
+bool is_single_node(Header* header) {
+    return (header->next != nullptr && header->next->hlink == nullptr);
+}
+
+void hamm_search(int index, vector<int>& current_pattern, const vector<int>& path, int suffix_support, ofstream& outfile, int total_transactions) {
+    if (index == path.size()) {
+        return; 
+    }
+
+    int item = path[index];
+
+    hamm_search(index + 1, current_pattern, path, suffix_support, outfile, total_transactions);
+
+    current_pattern.push_back(item);
+    
+    write_output(current_pattern, suffix_support, outfile, total_transactions);
+    
+    hamm_search(index + 1, current_pattern, path, suffix_support, outfile, total_transactions);
+    
+    current_pattern.pop_back();
+}
+
+void FP_Growth(Node* root, vector<Header*>& headers, vector<int> prefix, int min_sup, ofstream& outfile, int total_transactions) {
     for(auto& header : headers){
         vector<int> newPattern = prefix;
         newPattern.push_back(header->item);
         write_output(newPattern, header->freq, outfile, total_transactions);
+
+        if (is_single_node(header)) {
+            vector<int> path;
+            Node* curr = header->next->parent;
+            while (curr->item != -1) {
+                path.push_back(curr->item);
+                curr = curr->parent;
+            }
+
+            reverse(path.begin(), path.end());
+
+            hamm_search(0, newPattern, path, header->freq, outfile, total_transactions);
+
+            continue; 
+        }
         
         Node* node = header->next;
         vector<int> condCounts(1000, 0);
@@ -158,7 +195,7 @@ void FP_Growth(vector<Header*>& headers, vector<int> prefix, int min_sup, ofstre
 
         Node* newRoot = construct_tree(condPaths, newHeaders);
 
-        FP_Growth(newHeaders, newPattern, min_sup, outfile, total_transactions);
+        FP_Growth(newRoot, newHeaders, newPattern, min_sup, outfile, total_transactions);
     }
 }
 
@@ -223,7 +260,7 @@ int main(int argc , char* argv[]) {
     
     ofstream outfile(output_file);
     if (!outfile.is_open()) return 1;
-    FP_Growth(headers, {}, min_sup, outfile, transactions.size());
+    FP_Growth(root, headers, {}, min_sup, outfile, transactions.size());
     outfile.close();
     return 0;
 }
