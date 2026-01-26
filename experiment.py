@@ -7,9 +7,6 @@ import math
 MAX_WORKERS = 4 
 
 def run_hamm(dataset_name, input_file, min_sup_rate, output_file):
-    """
-    呼叫 C++ 執行檔的函式
-    """
     cmd = [
         "./tools/hamm",
         str(min_sup_rate),
@@ -20,9 +17,6 @@ def run_hamm(dataset_name, input_file, min_sup_rate, output_file):
     return result
 
 def preprocess_data(dataset_path, output_path, ratio=None, size=None):
-    """
-    根據 ratio 或 size 截斷資料，產生暫存檔
-    """
     with open(dataset_path, 'r') as f:
         lines = f.readlines()
     
@@ -66,7 +60,7 @@ def main():
     tasks = []
 
     for ds in dataset_list:
-        raw_path = f"data_raw/{ds}.txt"
+        raw_path = f"data_raw/{ds}.data"
         if not os.path.exists(raw_path):
             print(f"Skipping {ds}, file not found.")
             continue
