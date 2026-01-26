@@ -19,6 +19,24 @@
 
 using namespace std;
 
+map<string, int> str_to_id;
+vector<string> id_to_str;
+
+int get_id(const string& s) {
+    if (str_to_id.find(s) == str_to_id.end()) {
+        int new_id = id_to_str.size();
+        str_to_id[s] = new_id;
+        id_to_str.push_back(s);
+        return new_id;
+    }
+    return str_to_id[s];
+}
+
+string get_name(int id) {
+    if (id >= 0 && id < id_to_str.size()) return id_to_str[id];
+    return to_string(id);
+}
+
 struct Node {
     int item = -1;
     int freq = 0;
@@ -71,10 +89,10 @@ void remove_infrequent_items(vector<Header*>& itemList, int min_sup) {
     }
 }
 
-void write_output(vector<int>& pattern, int support, ofstream& outfile, int total_transactions) {
+void write_output(vector<int> pattern, int support, ofstream& outfile, int total_transactions) {
     sort(pattern.begin(), pattern.end());
     for (size_t i = 0; i < pattern.size(); i++) {
-        outfile << pattern[i] << (i != pattern.size() - 1 ? "," : "");
+        outfile << get_name(pattern[i]) << (i != pattern.size() - 1 ? "," : "");
     }
     double ratio = (double)support / total_transactions;
     double final_support = std::round(ratio * 10000.0) / 10000.0;
@@ -221,21 +239,39 @@ int main(int argc , char* argv[]) {
         return 1;
     }
 
-    vector<Header*> headers(1000, nullptr);
+    vector<Header*> headers(5000, nullptr);
     vector<vector<Header*>> transactions;
     string line;
     while(getline(infile, line)){
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if(line.empty()) continue;
+
         stringstream ss(line);
         string item;
-        vector<Header*> transaction;
+
+        vector<int> line_items;
         while (getline(ss, item, ',')) {
-            int itemVal = stoi(item);
+            item.erase(0, item.find_first_not_of(" \t\r\n"));
+            item.erase(item.find_last_not_of(" \t\r\n") + 1);
+            if(item.empty()) continue;
+
+            int id = get_id(item);
+            line_items.push_back(id);
+        }
+
+        sort(line_items.begin(), line_items.end()); 
+        line_items.erase(unique(line_items.begin(), line_items.end()), line_items.end());
+
+        vector<Header*> transaction;
+        for (int itemVal : line_items) {
             if(headers[itemVal] == nullptr){
                 headers[itemVal] = new Header();
                 headers[itemVal]->item = itemVal;
                 headers[itemVal]->freq = 1;
             }
-            else headers[itemVal]->freq++;
+            else {
+                headers[itemVal]->freq++;
+            }
             transaction.push_back(headers[itemVal]);
         }
         transactions.push_back(transaction);
