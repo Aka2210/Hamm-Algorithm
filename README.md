@@ -5,147 +5,166 @@ This project implements a simplified version of the **Hamm algorithm**, original
 
 > *"Mining High Utility Itemsets Using Prefix Trees and Utility Vectors"*
 
-While the original Hamm algorithm targets **High-Utility Itemset Mining (HUIM)** (considering profit and quantity), this implementation adapts its **core data structure — the TV Structure (Tree + Vector)** to solve the classic **Frequent Itemset Mining (FPM)** problem.
+While the original Hamm algorithm targets **High-Utility Itemset Mining (HUIM)**, this implementation adapts its core **TV Structure (Tree + Vector)** to solve the classic **Frequent Itemset Mining (FPM)** problem.
 
----
+By setting:
 
-## 🔑 Key Concept
-In this simplified version:
+- **Unit Price = 1**  
+- **Quantity = 1**
 
-- Every item has:
-  - **Unit price = 1**
-  - **Quantity = 1**
-
-Therefore:
+we treat:
 
 > **Utility = Frequency (Support)**
 
-The entire algorithm becomes a **frequency-based pattern mining method** using Hamm’s structural ideas.
+---
+
+## 🚀 Quick Start
+
+### 1. Environment Setup
+We provide a setup script that automates:
+
+- System dependency checks  
+- Python virtual environment creation  
+- Library installation (e.g., `psutil`)  
+- C++ core compilation  
+
+```bash
+chmod +x setup_env.sh
+./setup_env.sh
+```
 
 ---
 
-## 🚀 Features
+### 2. Data Preparation
+Place your raw transaction datasets in:
 
-- **TV Structure Implementation**  
-  Uses Hamm’s separation of:
-  - **Prefix Tree** → structure
-  - **Vector** → counting
+```
+data_raw/
+```
 
-- **Single Node Optimization**  
-  Detects linear paths (no branches) and generates all combinations directly using combinatorics.
+**Supported formats:**
+- `.data`
+- `.txt`
 
-- **High Performance (C++)**  
-  Implemented in C++ for:
-  - Efficient memory usage  
-  - Fast pointer-based tree traversal
+**Format:**
+- Items separated by commas  
+- Example:  
+```
+f,n,t,l,won
+```
+
+The system automatically applies **Set Semantics**:
+> Duplicate items in the same transaction are removed.
+
+---
+
+### 3. Running Automated Experiments
+
+Activate environment:
+```bash
+source .venv/bin/activate
+```
+
+#### Basic Run
+```bash
+python3 experiment.py --datasets "car" --minsup-ratios "1,2,5"
+```
+
+#### Full Baseline Reproduction
+```bash
+python3 experiment.py \
+  --datasets "mushroom,connect-4,car,kr-vs-kp" \
+  --tx-ratios "10,50,100" \
+  --minsup-ratios "1,2,5" \
+  --override-default-minsup "mushroom=5,connect-4=10" \
+  --parallel 4 \
+  --resume
+```
 
 ---
 
 ## 🛠️ Implementation Logic
 
-### 1. Simplification Strategy
+### 1. TV Structure (Tree + Vector)
 
-To adapt HUIM → FPM, the following are removed:
+Uses Hamm’s separation of:
 
-- ❌ Ignored:
-  - TWU (Transaction Weighted Utility)
-  - RU (Remaining Utility)
-  - Negative utilities
+- **Prefix Tree (UP-Tree)**  
+  Maintains structural relationships between items.
 
-- ✅ Modified:
-  - Utility Vector → simple **Support Count Vector**
+- **Utility Vector (Support Vector)**  
+  Enables fast counting without repeatedly scanning the tree.
 
 ---
 
-### 2. Algorithm Workflow
+### 2. Mining Process & Optimization
 
-#### Step 1: Preprocessing
-- Count frequency of all 1-items  
-- Filter items where `frequency < min_sup`  
-- Sort remaining items in **descending frequency order**  
-- Reorder each transaction using this order  
+#### Projection & Traceback
+For each item in the header table:
 
----
+- Trace prefix paths back to root  
+- Build conditional vectors  
 
-#### Step 2: Tree Construction (UP-Tree)
-Build a compact prefix tree based on the revised transactions.
+#### Single Node Optimization
+If a tree is a **single linear path**:
 
-**Node Structure:**
-Unlike the original Hamm structure which stores `brau` (branch utility) and `upos` (utility vector pointer), our simplified node stores:
-- **Item ID**: The identifier of the item.
-- **Count**: The support frequency of the path (Mapped from `brau` in the original paper, as Utility = Frequency in this simplified scope).
-- **Parent Pointer**: To trace the prefix path during mining.
-- **Child Pointers**: To maintain the tree structure.
-- **Node Link**: A pointer to the next node with the same Item ID (used for the Header Table).
+- Skip recursive mining  
+- Directly generate all subsets via combinations  
+
+This significantly reduces time complexity.
 
 ---
 
-#### Step 3: Mining Process
-For each item (bottom-up in header table):
+## 📋 Argument Reference (`experiment.py`)
 
-1. **Projection**  
-   Find all nodes of this item.
-
-2. **Vector Construction**  
-   Trace prefix paths back to root.
-
-3. **Counting**  
-   Aggregate supports from paths.
-
-4. **Recursion**  
-   Generate longer patterns:
-   - `{A}`
-   - `{A, B}`
-   - `{A, B, C}`
+| Argument | Description | Example |
+|---------|------------|---------|
+| `--datasets` | Dataset names in `data_raw/` | `mushroom,car` |
+| `--tx-ratios` | Percentage of transactions | `10,50,100` |
+| `--tx-size` | Fixed number of transactions | `50000` |
+| `--minsup-ratios` | MinSup multipliers | `0.5,1,2` |
+| `--override-default-minsup` | Dataset-specific base minsup | `mushroom=5` |
+| `--parallel` | Number of parallel processes | `4` |
+| `--resume` | Skip completed experiments | `--resume` |
 
 ---
 
-#### Step 4: Single Node Optimization
-If a tree becomes a **single path (no branches)**:
+## 📊 Visualization
 
-- Skip recursion
-- Directly output all subsets using combinations:
-  - `{A}`
-  - `{B}`
-  - `{A, B}`
-  - `{A, C}`
-  - ...
+To visualize the FP-Tree structure:
 
-This avoids building unnecessary trees.
+```bash
+python3 tools/visualize_fptree.py data_raw/car.data --minsup 10 --limit 20
+```
+
+Output:
+```
+fptree_viz.png
+```
+
+Shows:
+- Tree branching structure  
+- Node frequencies  
+
+Useful for debugging and analysis.
 
 ---
 
-## 📋 Input & Output
+## 📁 Project Structure
 
-### Input Format
-The program accepts a **transaction database file (text format)**.
-
-- Each line represents a **single transaction**
-- Items are represented by **integers**
-- Items are separated by **spaces**
-- **Do NOT include transaction IDs**
-
-#### Example (`data.txt`)
-```text
-1 2 3
-1 2
-1
-2 3
+```
+src/Hamm.cpp           # Core C++ implementation
+tools/hamm             # Compiled executable
+experiment.py          # Python experiment runner
+setup_env.sh           # Environment & build script
+data_raw/              # Input datasets
+results/               # Output patterns & performance logs
 ```
 
 ---
 
-### Output Format
-The program outputs **all Frequent Itemsets** that meet the minimum support threshold, followed by their **support count**.
+## 🧠 Conceptual Summary
 
-**Format:**
-[Item 1] [Item 2] ... : [Support Count]
-
-Example Output:
-```text
-3 : 2
-2 3 : 2
-2 : 3
-1 2 : 2
-1 : 3
-```
+> This project demonstrates that the **TV-Structure proposed in Hamm is not limited to HUIM**,  
+> but can be simplified into a highly efficient **Frequent Pattern Mining framework**,  
+> conceptually bridging **FP-Growth and utility-based mining**.
