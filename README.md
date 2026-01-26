@@ -1,8 +1,3 @@
----
-title: Simplified Hamm Algorithm for Frequent Itemset Mining
-tags: [Data Mining, Frequent Itemset Mining, FP-Growth, Hamm, TKDE2023]
----
-
 # Simplified Hamm Algorithm for Frequent Itemset Mining
 
 ## 📌 Overview
