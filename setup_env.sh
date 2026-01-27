@@ -1,6 +1,17 @@
 #!/bin/bash
 mkdir -p data_raw tools results
 
+if ! command -v wget &> /dev/null; then
+    echo "⚠️ wget could not be found. Trying to install..."
+fi
+
+if [ ! -f "tools/spmf.jar" ]; then
+    echo "Downloading spmf.jar..."
+    wget https://www.philippe-fournier-viger.com/spmf/spmf.jar -O tools/spmf.jar
+else
+    echo "spmf.jar already exists in tools/."
+fi
+
 echo -e "${GREEN}[1/4] Checking System Dependencies...${NC}"
 
 if ! command -v g++ &> /dev/null; then

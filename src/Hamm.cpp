@@ -19,23 +19,10 @@
 
 using namespace std;
 
+int max_id_found = 0;
+
 map<string, int> str_to_id;
 vector<string> id_to_str;
-
-int get_id(const string& s) {
-    if (str_to_id.find(s) == str_to_id.end()) {
-        int new_id = id_to_str.size();
-        str_to_id[s] = new_id;
-        id_to_str.push_back(s);
-        return new_id;
-    }
-    return str_to_id[s];
-}
-
-string get_name(int id) {
-    if (id >= 0 && id < id_to_str.size()) return id_to_str[id];
-    return to_string(id);
-}
 
 struct Node {
     int item = -1;
@@ -92,11 +79,10 @@ void remove_infrequent_items(vector<Header*>& itemList, int min_sup) {
 void write_output(vector<int> pattern, int support, ofstream& outfile, int total_transactions) {
     sort(pattern.begin(), pattern.end());
     for (size_t i = 0; i < pattern.size(); i++) {
-        outfile << get_name(pattern[i]) << (i != pattern.size() - 1 ? "," : "");
+        outfile << pattern[i] << (i != pattern.size() - 1 ? " " : "");
     }
-    double ratio = (double)support / total_transactions;
-    double final_support = std::round(ratio * 10000.0) / 10000.0;
-    outfile << ":" << fixed << setprecision(4) << final_support << endl;
+
+    outfile << " #SUP: " << support << endl;
 }
 
 Node* construct_tree(const vector<pair<vector<int>, int>>& condPaths, vector<Header*>& newHeaders) {
@@ -234,71 +220,52 @@ int main(int argc , char* argv[]) {
     string output_file = argv[3];
     
     ifstream infile(input_file);
-    if(!infile.is_open()){
-        cerr << "Error opening input file." << endl;
-        return 1;
-    }
+    if(!infile.is_open()) return 1;
 
-    vector<Header*> headers(5000, nullptr);
-    vector<vector<Header*>> transactions;
+    vector<vector<int>> transactions;
+    map<int, int> temp_counts;
     string line;
+
     while(getline(infile, line)){
-        if (!line.empty() && line.back() == '\r') line.pop_back();
         if(line.empty()) continue;
-
         stringstream ss(line);
-        string item;
-
-        vector<int> line_items;
-        while (getline(ss, item, ',')) {
-            item.erase(0, item.find_first_not_of(" \t\r\n"));
-            item.erase(item.find_last_not_of(" \t\r\n") + 1);
-            if(item.empty()) continue;
-
-            int id = get_id(item);
-            line_items.push_back(id);
-        }
-
-        sort(line_items.begin(), line_items.end()); 
-        line_items.erase(unique(line_items.begin(), line_items.end()), line_items.end());
-
-        vector<Header*> transaction;
-        for (int itemVal : line_items) {
-            if(headers[itemVal] == nullptr){
-                headers[itemVal] = new Header();
-                headers[itemVal]->item = itemVal;
-                headers[itemVal]->freq = 1;
-            }
-            else {
-                headers[itemVal]->freq++;
-            }
-            transaction.push_back(headers[itemVal]);
+        int item_id;
+        vector<int> transaction;
+        while(ss >> item_id) {
+            transaction.push_back(item_id);
+            temp_counts[item_id]++;
+            if(item_id > max_id_found) max_id_found = item_id;
         }
         transactions.push_back(transaction);
     }
     infile.close();
 
     int min_sup = (int)ceil(min_sup_rate * transactions.size());
-    
+
+    vector<Header*> headers;
+    vector<Header*> header_map(max_id_found + 1, nullptr);
+    for(auto const& [id, freq] : temp_counts) {
+        if(freq >= min_sup) {
+            Header* h = new Header();
+            h->item = id;
+            h->freq = freq;
+            headers.push_back(h);
+            header_map[id] = h;
+        }
+    }
+
     sort(headers.begin(), headers.end(), [](Header* a, Header* b){
-        if(a != nullptr && b != nullptr && a->freq == b->freq) return a->item > b->item; 
-        return a != nullptr && b != nullptr ? a->freq < b->freq : a != nullptr;
+        if(a->freq == b->freq) return a->item < b->item;
+        return a->freq < b->freq;
     });
-    
-    remove_infrequent_items(headers, min_sup);
 
     vector<pair<vector<int>, int>> initialPaths;
-    initialPaths.reserve(transactions.size());
-    
-    for(const auto& trans : transactions) {
-        vector<int> path;
-        path.reserve(trans.size());
-        for(auto* h : trans) {
-            if(h) path.push_back(h->item);
+    for(auto& trans : transactions) {
+        vector<int> filtered_path;
+        for(int id : trans) {
+            if(header_map[id]) filtered_path.push_back(id);
         }
-        if(!path.empty()) {
-            initialPaths.push_back({path, 1});
-        }
+        if(!filtered_path.empty()) initialPaths.push_back({filtered_path, 1});
     }
     
     auto start_time = std::chrono::high_resolution_clock::now();
