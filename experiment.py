@@ -434,7 +434,7 @@ def run_hamm(input_path, output_path, minsup_percent, keep_pattern_files=False):
 
     t0 = time.perf_counter()
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=None)
         elapsed = time.perf_counter() - t0
 
         if proc.returncode != 0:
@@ -854,7 +854,7 @@ def worker_minsup_sweep(ds, spmf_path, dat_path, n_tx, nbr_items, minsup_ratios,
                 recs.append(cache_ms[key])
                 continue
 
-            out_file = os.path.join(ds_dir, f"{alg}_ms{ms}.txt")
+            out_file = os.path.join(ds_dir, f"{alg}_ms{ms}.spmf")
             if alg == "Hamm":
                 m = run_hamm(spmf_path, out_file, ms, keep_pattern_files)
             else:
