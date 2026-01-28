@@ -82,7 +82,7 @@ void write_output(vector<int> pattern, int support, ofstream& outfile, int total
         outfile << pattern[i] << (i != pattern.size() - 1 ? " " : "");
     }
 
-    outfile << " #SUP: " << support << endl;
+    outfile << " #SUP: " << support << "\n";
 }
 
 Node* construct_tree(const vector<pair<vector<int>, int>>& condPaths, vector<Header*>& newHeaders) {
@@ -141,17 +141,24 @@ bool is_single_node(Header* header) {
     return (header->next != nullptr && header->next->hlink == nullptr);
 }
 
-void hamm_search(int index, vector<int>& current_pattern, const vector<int>& path, int suffix_support, ofstream& outfile, int total_transactions) {
-    if (index == path.size()) {
-        return; 
+void hamm_search_optimized(int index, int current_sum, vector<int>& current_pattern, 
+                           const vector<int>& IL, const vector<int>& UL, 
+                           int min_sup, ofstream& outfile, int total_transactions) {
+    if (index == IL.size()) {
+        if (!current_pattern.empty()) {
+            write_output(current_pattern, current_sum, outfile, total_transactions);
+        }
+        return;
     }
 
-    int item = path[index];
-    hamm_search(index + 1, current_pattern, path, suffix_support, outfile, total_transactions);
+    int sum_without_current = current_sum;
+    
+    if (sum_without_current >= min_sup) {
+        hamm_search_optimized(index + 1, sum_without_current, current_pattern, IL, UL, min_sup, outfile, total_transactions);
+    }
 
-    current_pattern.push_back(item);
-    write_output(current_pattern, suffix_support, outfile, total_transactions);
-    hamm_search(index + 1, current_pattern, path, suffix_support, outfile, total_transactions);
+    current_pattern.push_back(IL[index]);
+    hamm_search_optimized(index + 1, current_sum, current_pattern, IL, UL, min_sup, outfile, total_transactions);
     current_pattern.pop_back();
 }
 
@@ -163,14 +170,17 @@ void FP_Growth(Node* root, vector<Header*>& headers, vector<int> prefix, int min
         write_output(newPattern, header->freq, outfile, total_transactions);
 
         if (is_single_node(header)) {
-            vector<int> path;
+            vector<int> IL, UL;
+            IL.reserve(50); 
+            UL.reserve(50);
+            
             Node* curr = header->next->parent;
             while (curr->item != -1) {
-                path.push_back(curr->item);
+                IL.push_back(curr->item);
+                UL.push_back(header->freq);
                 curr = curr->parent;
             }
-            reverse(path.begin(), path.end());
-            hamm_search(0, newPattern, path, header->freq, outfile, total_transactions);
+            hamm_search_optimized(0, header->freq, newPattern, IL, UL, min_sup, outfile, total_transactions);
             continue; 
         }
         
@@ -213,8 +223,9 @@ void FP_Growth(Node* root, vector<Header*>& headers, vector<int> prefix, int min
 }
 
 int main(int argc , char* argv[]) {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(NULL);
     if (argc < 4) return 1;
-
     float min_sup_rate = stof(argv[1]);
     string input_file = argv[2];
     string output_file = argv[3];
@@ -259,6 +270,8 @@ int main(int argc , char* argv[]) {
         return a->freq < b->freq;
     });
 
+    remove_infrequent_items(headers, min_sup);
+
     vector<pair<vector<int>, int>> initialPaths;
     for(auto& trans : transactions) {
         vector<int> filtered_path;
@@ -284,10 +297,10 @@ int main(int argc , char* argv[]) {
     
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
-    cout << "===== Performance Report =====" << endl;
-    cout << "Time Elapsed: " << duration.count() << " ms" << endl;
-    cout << "Memory Usage (Peak): " << final_memory << " KB" << endl;
-    cout << "==============================" << endl;
+    cout << "===== Performance Report =====" << "\n";
+    cout << "Time Elapsed: " << duration.count() << " ms" << "\n";
+    cout << "Memory Usage (Peak): " << final_memory << " KB" << "\n";
+    cout << "==============================" << "\n";
     
     return 0;
 }
