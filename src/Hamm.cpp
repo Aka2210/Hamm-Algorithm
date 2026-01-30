@@ -237,6 +237,7 @@ int main(int argc , char* argv[]) {
     map<int, int> temp_counts;
     string line;
 
+    auto start_time = std::chrono::high_resolution_clock::now();
     while(getline(infile, line)){
         if(line.empty()) continue;
         stringstream ss(line);
@@ -280,8 +281,6 @@ int main(int argc , char* argv[]) {
         }
         if(!filtered_path.empty()) initialPaths.push_back({filtered_path, 1});
     }
-    
-    auto start_time = std::chrono::high_resolution_clock::now();
     
     Node* root = construct_tree(initialPaths, headers, max_id_found);
     
