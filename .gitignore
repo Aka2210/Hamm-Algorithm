@@ -77,6 +77,9 @@ x86/
 *.dat
 *.csv
 *.log
+*.spmf
+*.json
+*.png
 
 # BUT keep these specific important text files
 !README.md

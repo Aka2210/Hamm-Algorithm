@@ -85,9 +85,9 @@ void write_output(vector<int> pattern, int support, ofstream& outfile, int total
     outfile << " #SUP: " << support << "\n";
 }
 
-Node* construct_tree(const vector<pair<vector<int>, int>>& condPaths, vector<Header*>& newHeaders) {
+Node* construct_tree(const vector<pair<vector<int>, int>>& condPaths, vector<Header*>& newHeaders, int max_item_id) {
     Node* newRoot = new Node();
-    vector<Header*> headerMap(1000, nullptr); 
+    vector<Header*> headerMap(max_item_id + 1, nullptr); 
     for (auto* h : newHeaders) {
         headerMap[h->item] = h;
         h->next = nullptr; 
@@ -162,7 +162,7 @@ void hamm_search_optimized(int index, int current_sum, vector<int>& current_patt
     current_pattern.pop_back();
 }
 
-void FP_Growth(Node* root, vector<Header*>& headers, vector<int> prefix, int min_sup, ofstream& outfile, int total_transactions) {
+void FP_Growth(Node* root, vector<Header*>& headers, vector<int> prefix, int min_sup, ofstream& outfile, int total_transactions, int max_item_id) {
     for(auto& header : headers){
         vector<int> newPattern = prefix;
         newPattern.push_back(header->item);
@@ -185,7 +185,7 @@ void FP_Growth(Node* root, vector<Header*>& headers, vector<int> prefix, int min
         }
         
         Node* node = header->next;
-        vector<int> condCounts(1000, 0);
+        vector<int> condCounts(max_item_id + 1, 0);
         vector<pair<vector<int>, int>> condPaths;
         
         while(node){ 
@@ -201,7 +201,7 @@ void FP_Growth(Node* root, vector<Header*>& headers, vector<int> prefix, int min
         }
 
         vector<Header*> newHeaders;
-        for(int item = 0; item < 1000; item++){
+        for(int item = 0; item < max_item_id + 1; item++){
             int count = condCounts[item];
             if(count >= min_sup){
                 Header* h = new Header();
@@ -217,8 +217,8 @@ void FP_Growth(Node* root, vector<Header*>& headers, vector<int> prefix, int min
             return a->freq < b->freq; 
         });
 
-        Node* newRoot = construct_tree(condPaths, newHeaders);
-        FP_Growth(newRoot, newHeaders, newPattern, min_sup, outfile, total_transactions);
+        Node* newRoot = construct_tree(condPaths, newHeaders, max_item_id);
+        FP_Growth(newRoot, newHeaders, newPattern, min_sup, outfile, total_transactions, max_item_id);
     }
 }
 
@@ -283,12 +283,12 @@ int main(int argc , char* argv[]) {
     
     auto start_time = std::chrono::high_resolution_clock::now();
     
-    Node* root = construct_tree(initialPaths, headers);
+    Node* root = construct_tree(initialPaths, headers, max_id_found);
     
     ofstream outfile(output_file);
     if (!outfile.is_open()) return 1;
 
-    FP_Growth(root, headers, {}, min_sup, outfile, transactions.size());
+    FP_Growth(root, headers, {}, min_sup, outfile, transactions.size(), max_id_found);
 
     outfile.close();
 
