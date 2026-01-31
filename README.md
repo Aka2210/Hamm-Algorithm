@@ -5,11 +5,7 @@ This project implements a **simplified version of the Hamm algorithm**, original
 
 > *"Mining High Utility Itemsets Using Prefix Trees and Utility Vectors"*
 
-This implementation adapts Hamm's core **TV Structure (Tree + Vector)** to solve the classic **Frequent Itemset Mining (FPM)** problem.
-
-By setting **Unit Price = 1** and **Quantity = 1**, we treat:
-
-- **Utility = Frequency (Support)**
+This implementation adapts Hamm's **Single Node Optimization** and **FP-tree in FP-Growth** to solve the classic **Frequent Itemset Mining (FPM)** problem.
 
 ---
 
@@ -53,10 +49,10 @@ Run all datasets with various ratios and parallel processes:
 
 ```bash
 python3 experiment.py \
-  --datasets "mushroom,connect-4,car,kr-vs-kp" \
+  --datasets "mushroom,connect4,car,kr-vs-kp" \
   --tx-ratios "10,50,100" \
   --minsup-ratios "1,2,5" \
-  --override-default-minsup "mushroom=5,connect-4=10" \
+  --override-default-minsup "mushroom=5,connect4=10" \
   --parallel 4 \
   --resume
 ```
@@ -65,11 +61,8 @@ python3 experiment.py \
 
 ## 🛠️ Implementation Logic
 
-### 1. TV Structure (Tree + Vector)
-The implementation leverages Hamm's core structural advantage:
-
-- **Prefix Tree (UP-Tree)**: Maintains the structural relationships and frequency counts.
-- **Support Vector**: Derived from Hamm's utility vector, enabling fast frequency accumulation during prefix path traceback.
+### 1. Standard FP-tree
+Standard FP-Tree Structure Instead of the TV structure in the paper, this implementation utilizes the standard FP-Tree (as defined in the classic FP-Growth algorithm) to maintain itemset information, ensuring memory efficiency while adopting Hamm-style algorithmic flows.
 
 ---
 
@@ -122,11 +115,10 @@ results/              # Output patterns & performance logs
 ---
 
 ## 🧠 Conceptual Summary
-This project demonstrates that the **TV-Structure** and **Single Node Optimization** proposed in **Hamm** are highly effective for **Frequent Pattern Mining**.
-
+This project demonstrates that the **Single Node Optimization** proposed in **Hamm** is highly effective for **Frequent Pattern Mining**.
 By integrating these into an **FP-Growth** framework, we achieve a balance between:
 
 - Classical recursive mining (FP-Growth)
-- Modern utility-based structural optimizations (Hamm)
+- Modern utility-based mining optimizations (Hamm)
 
 ---
